@@ -9,8 +9,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import ReplyKeyboardRemove, KeyboardButton, FSInputFile, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from database import User, Product, get_session
-from sqlalchemy.orm import Session as SessionType
+from database import User, Product, get_session # ИСПРАВЛЕНО: импортируем get_session
+from sqlalchemy.orm import Session as SessionType # Оставляем для аннотации типов, если нужно
 from sqlalchemy.orm.attributes import flag_modified
 from keyboards import main_menu # Убедись, что keyboards.py корректно определен
 
@@ -164,9 +164,6 @@ async def feed_type_menu(callback: types.CallbackQuery, state: FSMContext):
     builder.add(
         types.InlineKeyboardButton(text="Корм для кошек", callback_data="feed:cats"),
         types.InlineKeyboardButton(text="Корм для собак", callback_data="feed:dogs"),
-        # Если захотите вернуть корм для ежей и попугаев, раскомментируйте эти строки:
-        # types.InlineKeyboardButton(text="Корм для ежей", callback_data="feed:other"),
-        # types.InlineKeyboardButton(text="Корм для попугаев", callback_data="feed:birds"),
     )
     builder.adjust(2)
     builder.row(types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"))
@@ -259,7 +256,7 @@ async def remove_one_from_cart_item(callback: types.CallbackQuery, state: FSMCon
     if user and len(user.cart) > item_index:
         updated_cart = list(user.cart)
         if updated_cart[item_index]["quantity"] > 1:
-            updated_cart[item_index]["quantity"] -= 1 # ИСПРАВЛЕНО ЗДЕСЬ
+            updated_cart[item_index]["quantity"] -= 1
         else:
             del updated_cart[item_index]
         user.cart = updated_cart
@@ -298,10 +295,8 @@ async def cats_menu(callback: types.CallbackQuery, session: SessionType):
         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
     )
-    # ИЗМЕНЕНО: текст сообщения
-    await edit_or_send_message(callback, text="Доступный корм для кошек:", reply_markup=builder.as_markup())
-    # ИЗМЕНЕНО: удалена эта строка
-    # await callback.answer()
+    await edit_or_send_message(callback, text="Выберите корм для кошек:", reply_markup=builder.as_markup())
+    await callback.answer()
 
 # Меню выбора корма для собак
 @dp.callback_query(F.data == "feed:dogs")
@@ -316,40 +311,8 @@ async def dogs_menu(callback: types.CallbackQuery, session: SessionType):
         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
     )
-    # ИЗМЕНЕНО: текст сообщения
-    await edit_or_send_message(callback, text="Доступный корм для собак:", reply_markup=builder.as_markup())
-    # ИЗМЕНЕНО: удалена эта строка
-    # await callback.answer()
-
-# Закомментированные функции для ежей и попугаев (если решите их вернуть)
-# @dp.callback_query(F.data == "feed:other")
-# async def other_menu(callback: types.CallbackQuery, session: SessionType):
-#     builder = InlineKeyboardBuilder()
-#     other_products = session.query(Product).filter_by(category="other").all()
-#     for product in other_products:
-#         builder.add(types.InlineKeyboardButton(text=product.name, callback_data=f"product:{product.id}"))
-#     builder.adjust(1)
-#     builder.row(
-#         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
-#         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
-#     )
-#     await edit_or_send_message(callback, text="Доступный корм для ежей:", reply_markup=builder.as_markup())
-#     # await callback.answer()
-
-# @dp.callback_query(F.data == "feed:birds")
-# async def birds_menu(callback: types.CallbackQuery, session: SessionType):
-#     builder = InlineKeyboardBuilder()
-#     bird_products = session.query(Product).filter_by(category="birds").all()
-#     for product in bird_products:
-#         builder.add(types.InlineKeyboardButton(text=product.name, callback_data=f"product:{product.id}"))
-#     builder.adjust(1)
-#     builder.row(
-#         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
-#         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
-#     )
-#     await edit_or_send_message(callback, text="Доступный корм для попугаев:", reply_markup=builder.as_markup())
-#     # await callback.answer()
-
+    await edit_or_send_message(callback, text="Выберите корм для собак:", reply_markup=builder.as_markup())
+    await callback.answer()
 
 # Вспомогательная функция для отображения продукта по ID
 async def show_product_by_id(callback: types.CallbackQuery, state: FSMContext, session: SessionType, product_id: int):
@@ -368,22 +331,10 @@ async def show_product_by_id(callback: types.CallbackQuery, state: FSMContext, s
         back_callback = "feed:cats"
     elif product.category == "dogs":
         back_callback = "feed:dogs"
-    # Если захотите вернуть корм для ежей и попугаев, раскомментируйте эти строки:
-    # elif product.category == "other":
-    #     back_callback = "feed:other"
-    # elif product.category == "birds":
-    #     back_callback = "feed:birds"
     else:
         back_callback = "menu:main" # Запасной вариант
 
-    # Проверьте путь к изображениям! Если вы используете /app/images, убедитесь,
-    # что эта папка существует и изображения в ней. На ВМ обычно используется
-    # относительный путь внутри проекта, например, "static/images"
-    # или абсолютный путь, если вы знаете, куда их загрузили.
-    image_path = os.path.join("/app/images", product.image_path) 
-    # Если на ВМ у вас images в Petshop/static/images, то путь будет такой:
-    # image_path = os.path.join("static/images", product.image_path) # <-- Возможная правка
-    
+    image_path = os.path.join("/app/images", product.image_path)
     if not os.path.exists(image_path):
         logging.warning(f"Image file not found: {image_path}. Using placeholder.")
         photo = None
@@ -569,20 +520,15 @@ async def process_contact(message: types.Message, state: FSMContext, session: Se
 
 # Обработчик кнопки "Назад"
 @dp.callback_query(F.data.startswith("back:"))
-async def back_from_product(callback: types.CallbackQuery, state: FSMContext, session: SessionType):
+async def back_from_product(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
     back_callback = callback.data.split(":", 1)[1]
     if back_callback == "feed:cats":
-        await cats_menu(callback, session=session)
+        await cats_menu(callback, session=callback.bot.get('session')) 
     elif back_callback == "feed:dogs":
-        await dogs_menu(callback, session=session)
+        await dogs_menu(callback, session=callback.bot.get('session')) 
     elif back_callback == "menu:feed_type":
         await feed_type_menu(callback, state)
-    # Если захотите вернуть корм для ежей и попугаев, раскомментируйте эти строки:
-    # elif back_callback == "feed:other":
-    #     await other_menu(callback, session=session)
-    # elif back_callback == "feed:birds":
-    #     await birds_menu(callback, session=session)
     elif back_callback == "menu:main":
         await back_to_main_menu(callback, state)
     else:
@@ -664,12 +610,26 @@ async def process_help_contact(message: types.Message, state: FSMContext, sessio
 async def echo_all(message: types.Message):
     if message.text in ("Старт", "/start"):
         return
-    # Если вы хотите, чтобы бот отвечал на любые другие сообщения, раскомментируйте следующую строку:
-    # await message.answer("Извините, я не понял вашу команду. Пожалуйста, воспользуйтесь меню.")
+    await message.answer("Я получил ваше сообщение!")
 
+# Запуск бота
 async def main():
-    logging.info("Starting bot polling...")
-    await dp.start_polling(bot)
+    logging.info("Starting bot main function...")
+    try:
+        logging.info("Attempting to start polling...")
+        await dp.start_polling(bot)
+        logging.info("Polling started successfully.")
+    except Exception as e:
+        logging.critical(f"Bot failed to start polling: {e}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import sys
+    logging.info("Running asyncio.run(main())...")
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logging.info("Bot stopped by user via KeyboardInterrupt.")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred in main execution: {e}", exc_info=True)
+    logging.info("asyncio.run(main()) finished. Exiting script.")
