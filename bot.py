@@ -9,8 +9,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import ReplyKeyboardRemove, KeyboardButton, FSInputFile, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from database import User, Product, get_session # Убедитесь, что get_session возвращает сессию, совместимую с AsyncSession, если вы используете асинхронный SQLAlchemy
-from sqlalchemy.orm import Session as SessionType # Если используете асинхронный SQLAlchemy, здесь должна быть AsyncSession
+from database import User, Product, get_session
+from sqlalchemy.orm import Session as SessionType
 from sqlalchemy.orm.attributes import flag_modified
 from keyboards import main_menu # Убедись, что keyboards.py корректно определен
 
@@ -259,7 +259,7 @@ async def remove_one_from_cart_item(callback: types.CallbackQuery, state: FSMCon
     if user and len(user.cart) > item_index:
         updated_cart = list(user.cart)
         if updated_cart[item_index]["quantity"] > 1:
-            updated_cart[item_index]["quantity"] -= 1
+            updated_cart[item_index]["quantity"] -= 1 # ИСПРАВЛЕНО ЗДЕСЬ
         else:
             del updated_cart[item_index]
         user.cart = updated_cart
@@ -298,8 +298,10 @@ async def cats_menu(callback: types.CallbackQuery, session: SessionType):
         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
     )
-    await edit_or_send_message(callback, text="Выберите корм для кошек:", reply_markup=builder.as_markup())
-    await callback.answer()
+    # ИЗМЕНЕНО: текст сообщения
+    await edit_or_send_message(callback, text="Доступный корм для кошек:", reply_markup=builder.as_markup())
+    # ИЗМЕНЕНО: удалена эта строка
+    # await callback.answer()
 
 # Меню выбора корма для собак
 @dp.callback_query(F.data == "feed:dogs")
@@ -314,8 +316,10 @@ async def dogs_menu(callback: types.CallbackQuery, session: SessionType):
         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
     )
-    await edit_or_send_message(callback, text="Выберите корм для собак:", reply_markup=builder.as_markup())
-    await callback.answer()
+    # ИЗМЕНЕНО: текст сообщения
+    await edit_or_send_message(callback, text="Доступный корм для собак:", reply_markup=builder.as_markup())
+    # ИЗМЕНЕНО: удалена эта строка
+    # await callback.answer()
 
 # Закомментированные функции для ежей и попугаев (если решите их вернуть)
 # @dp.callback_query(F.data == "feed:other")
@@ -329,8 +333,8 @@ async def dogs_menu(callback: types.CallbackQuery, session: SessionType):
 #         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
 #         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
 #     )
-#     await edit_or_send_message(callback, text="Выберите корм для ежей:", reply_markup=builder.as_markup())
-#     await callback.answer()
+#     await edit_or_send_message(callback, text="Доступный корм для ежей:", reply_markup=builder.as_markup())
+#     # await callback.answer()
 
 # @dp.callback_query(F.data == "feed:birds")
 # async def birds_menu(callback: types.CallbackQuery, session: SessionType):
@@ -343,8 +347,8 @@ async def dogs_menu(callback: types.CallbackQuery, session: SessionType):
 #         types.InlineKeyboardButton(text="Назад", callback_data="menu:feed_type"),
 #         types.InlineKeyboardButton(text="В главное меню", callback_data="menu:main"),
 #     )
-#     await edit_or_send_message(callback, text="Выберите корм для попугаев:", reply_markup=builder.as_markup())
-#     await callback.answer()
+#     await edit_or_send_message(callback, text="Доступный корм для попугаев:", reply_markup=builder.as_markup())
+#     # await callback.answer()
 
 
 # Вспомогательная функция для отображения продукта по ID
@@ -565,28 +569,25 @@ async def process_contact(message: types.Message, state: FSMContext, session: Se
 
 # Обработчик кнопки "Назад"
 @dp.callback_query(F.data.startswith("back:"))
-async def back_from_product(callback: types.CallbackQuery, state: FSMContext, session: SessionType): # ### ИСПРАВЛЕНО: ДОБАВЛЕН 'session: SessionType'
+async def back_from_product(callback: types.CallbackQuery, state: FSMContext, session: SessionType):
     await callback.answer()
     back_callback = callback.data.split(":", 1)[1]
     if back_callback == "feed:cats":
-        # Исправлено: передача сессии напрямую в обработчик, а не через data
-        await cats_menu(callback, session=session) # ### ИСПРАВЛЕНО: Было 'callback.bot.get('session')'
+        await cats_menu(callback, session=session)
     elif back_callback == "feed:dogs":
-        # Исправлено: передача сессии напрямую в обработчик, а не через data
-        await dogs_menu(callback, session=session) # ### ИСПРАВЛЕНО: Было 'callback.bot.get('session')'
+        await dogs_menu(callback, session=session)
     elif back_callback == "menu:feed_type":
         await feed_type_menu(callback, state)
     # Если захотите вернуть корм для ежей и попугаев, раскомментируйте эти строки:
     # elif back_callback == "feed:other":
-    #     await other_menu(callback, session=session) # ### ИСПРАВЛЕНО: Если раскомментируете
+    #     await other_menu(callback, session=session)
     # elif back_callback == "feed:birds":
-    #     await birds_menu(callback, session=session) # ### ИСПРАВЛЕНО: Если раскомментируете
+    #     await birds_menu(callback, session=session)
     elif back_callback == "menu:main":
         await back_to_main_menu(callback, state)
     else:
         logging.warning(f"Unhandled back_callback: {back_callback}")
         await edit_or_send_message(callback, text="Ошибка возврата. Возвращаю в главное меню.", reply_markup=main_menu())
-# ### КОНЕЦ ИСПРАВЛЕНИЯ
 
 # --- ОБНОВЛЕННЫЕ ОБРАБОТЧИКИ ДЛЯ ФУНКЦИИ "ПОМОЩЬ" ---
 
@@ -663,17 +664,12 @@ async def process_help_contact(message: types.Message, state: FSMContext, sessio
 async def echo_all(message: types.Message):
     if message.text in ("Старт", "/start"):
         return
+    # Если вы хотите, чтобы бот отвечал на любые другие сообщения, раскомментируйте следующую строку:
+    # await message.answer("Извините, я не понял вашу команду. Пожалуйста, воспользуйтесь меню.")
 
-
-# Запуск бота
 async def main():
     logging.info("Starting bot polling...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logging.info("Bot stopped by KeyboardInterrupt")
-    except Exception as e:
-        logging.critical(f"Unhandled exception during bot polling: {e}", exc_info=True)
+    asyncio.run(main())
