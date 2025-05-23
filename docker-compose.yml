@@ -1,23 +1,25 @@
+version: '3.8'
+
 services:
-  postgres:  # Только если используете PostgreSQL
-    image: postgres:15
+  postgres:
+    image: postgres:13-alpine
     environment:
-      POSTGRES_USER: botuser
-      POSTGRES_PASSWORD: botpass
-      POSTGRES_DB: botdb
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./pgdata:/var/lib/postgresql/data # Это для сохранения данных базы
+    ports:
+      - "5432:5432" # Опционально, если вам нужен доступ к БД снаружи
+    restart: unless-stopped
 
   bot:
     build: .
-    env_file: .env
-    environment:
-      DATABASE_URL: postgresql://botuser:botpass@postgres:5432/botdb
+    env_file:
+      - .env
     depends_on:
       - postgres
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
+    volumes:
+      - .:/app # Это монтирует весь ваш текущий каталог в /app внутри контейнера
+      - ./images:/app/images # <--- ДОБАВЬТЕ ЭТУ СТРОКУ для изображений!
+    restart: on-failure # Можно изменить на unless-stopped, если хотите, чтобы бот всегда пытался перезапуститься
