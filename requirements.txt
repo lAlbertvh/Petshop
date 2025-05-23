@@ -1,0 +1,7 @@
+
+
+aiogram==3.20
+sqlalchemy>=2.0
+psycopg2-binary  # для PostgreSQL
+python-dotenv
+aiohttp

@@ -1,0 +1,6 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+bot.db # Если вы используете SQLite, не загружайте файл базы данных
+.DS_Store
