@@ -15,7 +15,7 @@ services:
       timeout: 5s
       retries: 5
 
-  bot: # <-- ДОЛЖНО БЫТЬ РОВНО ДВА ПРОБЕЛА ЗДЕСЬ, КАК И В DB
+  bot:
     build: .
     depends_on:
       db:
@@ -24,17 +24,21 @@ services:
       - .env
     ports:
       - "80:80"
-    command: python bot.py # <-- ДОЛЖНО БЫТЬ ЧЕТЫРЕ ПРОБЕЛА ЗДЕСЬ (относительно начала строки), ЕСЛИ ИСПОЛЬЗУЕТЕ 2-ПРОБЕЛЬНЫЙ ОТСТУП
+    command: python bot.py
 
-  init_db: # <-- ДОЛЖНО БЫТЬ РОВНО ДВА ПРОБЕЛА ЗДЕСЬ
+  init_db:
     build: .
     depends_on:
       db:
         condition: service_healthy
     env_file:
       - .env
+    # ЭТО НОВОЕ ДОБАВЛЕНИЕ: init_db будет использовать базу "postgres" для подключения
+    # Это позволит ему создать вашу базу "petshop_db"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/postgres
     command: bash -c "python database.py && python fill_products.py"
     profiles: ["setup"]
 
-volumes: # <-- БЕЗ ОТСТУПА
-  db_data: # <-- ДВА ПРОБЕЛА
+volumes:
+  db_data:
