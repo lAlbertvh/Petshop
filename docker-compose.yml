@@ -1,32 +1,40 @@
 services:
-  postgres:
-    image: postgres:13-alpine
+  db:
+    image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    env_file:
-      - .env
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - db_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    restart: unless-stopped
-    healthcheck: # <--- ДОБАВЬТЕ ЭТУ СЕКЦИЮ!
+    healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
-      start_period: 10s # Даем БД 10 секунд на первичный запуск до начала проверок
 
-  bot:
+  bot: # <-- ДОЛЖНО БЫТЬ РОВНО ДВА ПРОБЕЛА ЗДЕСЬ, КАК И В DB
     build: .
+    depends_on:
+      db:
+        condition: service_healthy
     env_file:
       - .env
+    ports:
+      - "80:80"
+    command: python bot.py # <-- ДОЛЖНО БЫТЬ ЧЕТЫРЕ ПРОБЕЛА ЗДЕСЬ (относительно начала строки), ЕСЛИ ИСПОЛЬЗУЕТЕ 2-ПРОБЕЛЬНЫЙ ОТСТУП
+
+  init_db: # <-- ДОЛЖНО БЫТЬ РОВНО ДВА ПРОБЕЛА ЗДЕСЬ
+    build: .
     depends_on:
-      postgres:
-        condition: service_healthy # <--- ИЗМЕНИТЕ ЭТУ СТРОКУ!
-    volumes:
-      - .:/app
-      - ./images:/app/images
-    restart: on-failure
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    command: bash -c "python database.py && python fill_products.py"
+    profiles: ["setup"]
+
+volumes: # <-- БЕЗ ОТСТУПА
+  db_data: # <-- ДВА ПРОБЕЛА
