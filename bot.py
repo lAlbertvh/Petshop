@@ -9,8 +9,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 from aiogram.types import ReplyKeyboardRemove, KeyboardButton, FSInputFile, InlineKeyboardMarkup, ReplyKeyboardMarkup
-from database import User, Product, get_session
-from sqlalchemy.orm import Session as SessionType
+from database import User, Product, get_session # Убедитесь, что get_session возвращает сессию, совместимую с AsyncSession, если вы используете асинхронный SQLAlchemy
+from sqlalchemy.orm import Session as SessionType # Если используете асинхронный SQLAlchemy, здесь должна быть AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 from keyboards import main_menu # Убедись, что keyboards.py корректно определен
 
@@ -372,7 +372,14 @@ async def show_product_by_id(callback: types.CallbackQuery, state: FSMContext, s
     else:
         back_callback = "menu:main" # Запасной вариант
 
-    image_path = os.path.join("/app/images", product.image_path)
+    # Проверьте путь к изображениям! Если вы используете /app/images, убедитесь,
+    # что эта папка существует и изображения в ней. На ВМ обычно используется
+    # относительный путь внутри проекта, например, "static/images"
+    # или абсолютный путь, если вы знаете, куда их загрузили.
+    image_path = os.path.join("/app/images", product.image_path) 
+    # Если на ВМ у вас images в Petshop/static/images, то путь будет такой:
+    # image_path = os.path.join("static/images", product.image_path) # <-- Возможная правка
+    
     if not os.path.exists(image_path):
         logging.warning(f"Image file not found: {image_path}. Using placeholder.")
         photo = None
@@ -558,27 +565,28 @@ async def process_contact(message: types.Message, state: FSMContext, session: Se
 
 # Обработчик кнопки "Назад"
 @dp.callback_query(F.data.startswith("back:"))
-async def back_from_product(callback: types.CallbackQuery, state: FSMContext):
+async def back_from_product(callback: types.CallbackQuery, state: FSMContext, session: SessionType): # ### ИСПРАВЛЕНО: ДОБАВЛЕН 'session: SessionType'
     await callback.answer()
     back_callback = callback.data.split(":", 1)[1]
     if back_callback == "feed:cats":
         # Исправлено: передача сессии напрямую в обработчик, а не через data
-        await cats_menu(callback, session=callback.bot.get('session')) 
+        await cats_menu(callback, session=session) # ### ИСПРАВЛЕНО: Было 'callback.bot.get('session')'
     elif back_callback == "feed:dogs":
         # Исправлено: передача сессии напрямую в обработчик, а не через data
-        await dogs_menu(callback, session=callback.bot.get('session')) 
+        await dogs_menu(callback, session=session) # ### ИСПРАВЛЕНО: Было 'callback.bot.get('session')'
     elif back_callback == "menu:feed_type":
         await feed_type_menu(callback, state)
     # Если захотите вернуть корм для ежей и попугаев, раскомментируйте эти строки:
     # elif back_callback == "feed:other":
-    #     await other_menu(callback, session=callback.bot.get('session'))
+    #     await other_menu(callback, session=session) # ### ИСПРАВЛЕНО: Если раскомментируете
     # elif back_callback == "feed:birds":
-    #     await birds_menu(callback, session=callback.bot.get('session'))
+    #     await birds_menu(callback, session=session) # ### ИСПРАВЛЕНО: Если раскомментируете
     elif back_callback == "menu:main":
         await back_to_main_menu(callback, state)
     else:
         logging.warning(f"Unhandled back_callback: {back_callback}")
         await edit_or_send_message(callback, text="Ошибка возврата. Возвращаю в главное меню.", reply_markup=main_menu())
+# ### КОНЕЦ ИСПРАВЛЕНИЯ
 
 # --- ОБНОВЛЕННЫЕ ОБРАБОТЧИКИ ДЛЯ ФУНКЦИИ "ПОМОЩЬ" ---
 
@@ -655,37 +663,17 @@ async def process_help_contact(message: types.Message, state: FSMContext, sessio
 async def echo_all(message: types.Message):
     if message.text in ("Старт", "/start"):
         return
-    await message.answer("Я получил ваше сообщение!")
+
 
 # Запуск бота
 async def main():
-    logging.info("Starting bot main function...")
-    try:
-        # Устанавливаем сессию в контекст бота, чтобы она была доступна в обработчиках
-        # Это нужно, если вы хотите получать сессию через callback.bot.get('session')
-        # Хотя middleware уже добавляет ее в data, это может быть полезно для других сценариев.
-        # dp.run_polling(bot) сам по себе запускает опрос и блокирует выполнение.
-        # Если вы используете middleware, то session уже будет в data.
-        # Для простоты и надежности, можно просто запустить polling здесь.
-        logging.info("Attempting to start polling...")
-        await dp.start_polling(bot)
-        logging.info("Polling started successfully.")
-    except Exception as e:
-        logging.critical(f"Bot failed to start polling: {e}", exc_info=True)
-        sys.exit(1)
+    logging.info("Starting bot polling...")
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    logging.info("Running asyncio.run(main())...")
-    # Регистрируем middleware здесь, до запуска polling
-    # Это важно, чтобы middleware было активно с самого начала.
-    # Если middleware уже зарегистрировано через @dp.update.middleware(),
-    # то эта строка может быть избыточной, но не повредит.
-    # dp.update.middleware(DbSessionMiddleware(session_factory=get_session)) # Эта строка не нужна, если уже есть декоратор
-
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logging.info("Bot stopped by user via KeyboardInterrupt.")
+        logging.info("Bot stopped by KeyboardInterrupt")
     except Exception as e:
-        logging.error(f"An unexpected error occurred in main execution: {e}", exc_info=True)
-    logging.info("asyncio.run(main()) finished. Exiting script.")
+        logging.critical(f"Unhandled exception during bot polling: {e}", exc_info=True)
