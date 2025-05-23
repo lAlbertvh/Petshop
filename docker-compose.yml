@@ -1,4 +1,5 @@
-version: '3.8'
+# УДАЛИТЕ ЭТУ СТРОКУ, она устарела и вызывает предупреждение
+# version: '3.8' 
 
 services:
   postgres:
@@ -7,11 +8,19 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file: # <--- ДОБАВЬТЕ ЭТИ ДВЕ СТРОКИ!
+      - .env  # <--- Теперь Postgres будет читать переменные из .env
     volumes:
-      - ./pgdata:/var/lib/postgresql/data # Это для сохранения данных базы
+      - ./pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432" # Опционально, если вам нужен доступ к БД снаружи
+      - "5432:5432"
     restart: unless-stopped
+    # Для большей надежности можно добавить healthcheck, но пока попробуем без него
+    # healthcheck:
+    #   test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+    #   interval: 5s
+    #   timeout: 5s
+    #   retries: 5
 
   bot:
     build: .
@@ -20,6 +29,6 @@ services:
     depends_on:
       - postgres
     volumes:
-      - .:/app # Это монтирует весь ваш текущий каталог в /app внутри контейнера
-      - ./images:/app/images # <--- ДОБАВЬТЕ ЭТУ СТРОКУ для изображений!
-    restart: on-failure # Можно изменить на unless-stopped, если хотите, чтобы бот всегда пытался перезапуститься
+      - .:/app
+      - ./images:/app/images
+    restart: on-failure
